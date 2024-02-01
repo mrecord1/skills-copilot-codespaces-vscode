@@ -1,83 +1,46 @@
 //create web server
-var express = require('express');
-var app = express();
-//create server
-var http = require('http').Server(app);
-//create socket
-var io = require('socket.io')(http);
-//create file system
+var http = require('http');
 var fs = require('fs');
-//create mysql
-var mysql = require('mysql');
-//create body parser
-var bodyParser = require('body-parser');
-//create cookie parser
-var cookieParser = require('cookie-parser');
-//create session
-var session = require('express-session');
-//create session store
-var MySQLStore = require('express-mysql-session')(session);
-//create path
+var url = require('url');
 var path = require('path');
-//create multer
-var multer = require('multer');
-//create upload
-var upload = multer({dest: 'uploads/'});
-//connect to database
-var con = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: 'password',
-  database: 'comments'
+var comments = [];
+var server = http.createServer(function(request, response){
+    //parse url
+    var urlObj = url.parse(request.url, true);
+    var pathname = urlObj.pathname;
+    //static server
+    if(pathname === '/'){
+        response.setHeader('Content-Type', 'text/html');
+        fs.readFile('./index.html', function(err, data){
+            response.end(data);
+        });
+    }else if(pathname === '/addComment'){
+        //get data from post method
+        var comment = urlObj.query;
+        //set comment time
+        comment.dateTime = new Date();
+        comments.unshift(comment);
+        response.end(JSON.stringify(comment));
+    }else if(pathname === '/getComments'){
+        var str = JSON.stringify(comments);
+        response.end(str);
+    }else{
+        //static server
+        staticRoot(pathname, request, response);
+    }
 });
-
-//connect to database
-con.connect(function(err) {
-  if (err) {
-    console.log("Error: " + err);
-  } else {
-    console.log("Connected!");
-  }
-});
-
-//create session store
-var sessionStore = new MySQLStore({
-  host: 'localhost',
-  user: 'root',
-  password: 'password',
-  database: 'comments'
-});
-
-//use session store
-app.use(session({
-  secret: 'secret',
-  store: sessionStore,
-  resave: false,
-  saveUninitialized: false
-}));
-
-//use cookie parser
-app.use(cookieParser());
-
-//use body parser
-app.use(bodyParser.urlencoded({extended: false}));
-
-//use body parser
-app.use(bodyParser.json());
-
-//use public folder
-app.use(express.static('public'));
-
-//use public folder
-app.use(express.static('uploads'));
-
-//use public folder
-app.use(express.static('node_modules'));
-
-//use public folder
-app.use(express.static('uploads'));
-
-//use public folder
-app.use(express.static('uploads'));
-
-//use public f
+//static server
+function staticRoot(pathname, request, response){
+    var staticPath = path.join(__dirname, 'public');
+    var filePath = path.join(staticPath, pathname);
+    fs.readFile(filePath, function(err, data){
+        if(err){
+            response.statusCode = 404;
+            response.end('404 Not Found');
+        }else{
+            response.end(data);
+        }
+    });
+}
+server.listen(8080);
+console.log('visit http://localhost:8080');
